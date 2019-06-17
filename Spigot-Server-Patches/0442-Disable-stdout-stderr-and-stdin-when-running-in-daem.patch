@@ -1,0 +1,39 @@
+From c23e6a892c9ddae790829d247e94305cee96d4c2 Mon Sep 17 00:00:00 2001
+From: Kyle Wood <demonwav@gmail.com>
+Date: Sun, 16 Jun 2019 21:20:10 -0500
+Subject: [PATCH] Disable stdout, stderr, and stdin when running in daemon mode
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index b145b55bc..e9a09e223 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -21,6 +21,25 @@ public class Main {
+     public static boolean useConsole = true;
+ 
+     public static void main(String[] args) {
++        // Paper start - enable daemon mode
++        if ("true".equals(System.getProperty("io.papermc.daemon.enabled"))) {
++            useJline = false;
++            useConsole = false;
++            // When running as a daemon, we won't have stdout, stderr, and stdin
++            // If we leave this around as normal then that will cause crashes elsewhere,
++            // since paperd has already closed them
++            // Set them to a PrintStream which does nothing, rather than null, to prevent NPE errors
++            final java.io.PrintStream stream = new java.io.PrintStream(new java.io.OutputStream() {@Override public void write(int b) {}});
++            System.setOut(stream);
++            System.setErr(stream);
++            System.setIn(new java.io.InputStream() {@Override public int read() {
++                // block forever
++                //noinspection InfiniteLoopStatement
++                while (true) try { this.wait(); } catch (final InterruptedException ignored) {}
++            }});
++        }
++        // Paper end
++
+         // Todo: Installation script
+         OptionParser parser = new OptionParser() {
+             {
+-- 
+2.22.0
+
